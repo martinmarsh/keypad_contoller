@@ -17,11 +17,20 @@ class Action:
             8683: self.lock,       # numlock +
             8783: self.unlock,     # numlock -
             8842: self.shutdown,   # backsp  enter
+            97: self.quick_right_helm,    # 9
+            96: self.stop_helm,  # 8
+            95: self.quick_left_helm,      # 7
             94: self.right_helm,    # 6
-            93: self.steer_course,  # 5
-            92: self.left_helm      # 4
+            93: self.stop_helm,  # 5
+            92: self.left_helm,      # 4
+            91: self.slow_right_helm,  # 3
+            90: self.stop_helm,  # 2
+            89: self.slow_left_helm,  # 1
+            98: self.steer_course,  # 0
+
         }
         self.lock = True
+        self.drive = 0
 
     def _action_key(self, val):
         method = self._key_map.get(val, None)
@@ -35,12 +44,6 @@ class Action:
         elif self.unlock:
             self._action_key(value)
 
-        elif control[2]:
-            print(control[2])
-            if control[2] == 94:
-                x = int(r.hget("helm", "hts"))
-                r.hset("helm", "hts", x + 10)
-
     def lock(self):
         self.lock = True
 
@@ -51,19 +54,39 @@ class Action:
     def shutdown():
         os.system("sudo shutdown now -h")
 
-    @staticmethod
-    def right_helm():
-        r.hset("helm", "auto_mode", 0)
-        r.hset("helm", "drive", 10)
+    def _manual_mode(self, inc):
+        r.hset("helm", "auto_mode", 3)
+        if -100 - inc <= self.drive <= 100 - inc:
+            self.drive += inc
+        r.hset("helm", "drive", self.drive)
 
-    @staticmethod
-    def left_helm():
-        r.hset("helm", "auto_mode", 0)
-        r.hset("helm", "drive", -10)
+    def quick_right_helm(self):
+        self._manual_mode(33)
 
-    @staticmethod
-    def steer_course():
-        r.hset("helm", "auto_mode", 1)
+    def quick_left_helm(self):
+        self._manual_mode(-33)
+
+    def right_helm(self):
+        self._manual_mode(10)
+
+    def left_helm(self):
+        self._manual_mode(-10)
+
+    def slow_right_helm(self):
+        self._manual_mode(1)
+
+    def slow_left_helm(self):
+        self._manual_mode(-1)
+
+    def steer_course(self):
+        self.drive = 0
+        hts = float(r.hget("current_data", "compass"))
+        print(hts)
+        r.hset("helm", "hts", int(hts*10))
+        r.hset("helm", "auto_mode", 2)
+
+    def stop_helm(self):
+        self.drive = 0
 
 
 if __name__ == '__main__':
