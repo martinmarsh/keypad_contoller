@@ -14,8 +14,8 @@ class Action:
 
     def __init__(self):
         self._key_map = {
-            8683: self.lock,       # numlock +
-            8783: self.unlock,     # numlock -
+            8783: self.lock,       # numlock +
+            8683: self.unlock,     # numlock -
             8842: self.shutdown,   # backsp  enter
             97: self.quick_right_helm,    # 9
             96: self.stop_helm,  # 8
@@ -27,10 +27,15 @@ class Action:
             90: self.stop_helm,  # 2
             89: self.slow_left_helm,  # 1
             98: self.steer_course,  # 0
-
+            8784: self.increase_tsf,  # /+
+            8684: self.decrease_tsf,  # /-
+            8785: self.increase_gain,  # *+
+            8685: self.decrease_gain,  # *-
         }
         self.lock = True
         self.drive = 0
+        self.gain = 80000
+        self.tsf = 200
 
     def _action_key(self, val):
         method = self._key_map.get(val, None)
@@ -41,13 +46,15 @@ class Action:
         value = key_array[3] * 100 + key_array[2]
         if value == 8683 or value == 8783:
             self._action_key(value)
-        elif self.unlock:
+        elif not self.lock:
             self._action_key(value)
 
     def lock(self):
+        print("locked")
         self.lock = True
 
     def unlock(self):
+        print("unlocked")
         self.lock = False
 
     @staticmethod
@@ -59,6 +66,18 @@ class Action:
         if -100 - inc <= self.drive <= 100 - inc:
             self.drive += inc
         r.hset("helm", "drive", self.drive)
+
+    def _gain(self, inc):
+        if 100 - inc <= self.gain <= 8000000 - inc:
+            self.gain += inc
+            print(f"Gain = {self.gain}")
+        r.hset("helm", "gain", self.gain)
+
+    def _tsf(self, inc):
+        if 10 - inc <= self.tsf <= 2000 - inc:
+            self.tsf += inc
+            print(f"tsf = {self.tsf}")
+        r.hset("helm", "tsf", self.tsf)
 
     def quick_right_helm(self):
         self._manual_mode(33)
@@ -78,6 +97,18 @@ class Action:
     def slow_left_helm(self):
         self._manual_mode(-1)
 
+    def increase_gain(self):
+        self._gain(self.gain / 10)
+
+    def decrease_gain(self):
+        self._gain(-self.gain / 10)
+
+    def increase_tsf(self):
+        self._tsf(self.tsf / 10)
+
+    def decrease_tsf(self):
+        self._tsf(-self.tsf / 10)
+
     def steer_course(self):
         self.drive = 0
         hts = float(r.hget("current_data", "compass"))
@@ -87,6 +118,7 @@ class Action:
 
     def stop_helm(self):
         self.drive = 0
+        r.hset("helm", "drive", self.drive)
 
 
 if __name__ == '__main__':
