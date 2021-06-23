@@ -101,7 +101,7 @@ class Action:
         self._gain(int(self.gain / 10))
 
     def decrease_gain(self):
-        self._gain(int(self.gain / 10))
+        self._gain(-int(self.gain / 10))
 
     def increase_tsf(self):
         self._tsf(int(self.tsf / 10))
