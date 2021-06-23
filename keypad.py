@@ -71,13 +71,13 @@ class Action:
         if 100 - inc <= self.gain <= 8000000 - inc:
             self.gain += inc
             print(f"Gain = {self.gain}")
-        r.hset("helm", "gain", self.gain)
+        r.hset("helm", "gain", int(self.gain))
 
     def _tsf(self, inc):
         if 10 - inc <= self.tsf <= 2000 - inc:
             self.tsf += inc
             print(f"tsf = {self.tsf}")
-        r.hset("helm", "tsf", self.tsf)
+        r.hset("helm", "tsf", int(self.tsf))
 
     def quick_right_helm(self):
         self._manual_mode(33)
@@ -98,16 +98,16 @@ class Action:
         self._manual_mode(-1)
 
     def increase_gain(self):
-        self._gain(self.gain / 10)
+        self._gain(int(self.gain / 10))
 
     def decrease_gain(self):
-        self._gain(-self.gain / 10)
+        self._gain(int(self.gain / 10))
 
     def increase_tsf(self):
-        self._tsf(self.tsf / 10)
+        self._tsf(int(self.tsf / 10))
 
     def decrease_tsf(self):
-        self._tsf(-self.tsf / 10)
+        self._tsf(int(-self.tsf / 10))
 
     def steer_course(self):
         self.drive = 0
