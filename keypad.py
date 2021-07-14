@@ -35,7 +35,7 @@ class Action:
         self.lock = True
         self.drive = 0
         self.gain = 80000
-        self.tsf = 200
+        self.tsf = 20
 
     def _action_key(self, val):
         method = self._key_map.get(val, None)
@@ -119,6 +119,7 @@ class Action:
     def stop_helm(self):
         self.drive = 0
         r.hset("helm", "drive", self.drive)
+        r.hset("helm", "auto_mode", 3)
 
 
 if __name__ == '__main__':
