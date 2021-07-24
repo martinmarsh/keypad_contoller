@@ -16,6 +16,8 @@ class Action:
         self._key_map = {
             8783: self.lock,       # numlock +
             8683: self.unlock,     # numlock -
+            8483: self.ext_compass, # numlock /
+            8583: self.int_compass,  # numlock *
             8842: self.shutdown,   # backsp  enter
             97: self.quick_right_helm,    # 9
             96: self.stop_helm,  # 8
@@ -34,8 +36,12 @@ class Action:
         }
         self.lock = True
         self.drive = 0
-        self.gain = 80000
-        self.tsf = 20
+        self.gain = 8000
+        self.tsf = 250
+        self.compass_mode = 1
+        r.hset("helm", "tsf", self.tsf)
+        r.hset("helm", "compass_mode", self.compass_mode)
+        r.hset("helm", "gain", self.gain)
 
     def _action_key(self, val):
         method = self._key_map.get(val, None)
@@ -57,6 +63,14 @@ class Action:
         print("unlocked")
         self.lock = False
 
+    def int_compass(self):
+        self.compass_mode = 1
+        r.hset("helm", "compass_mode", self.compass_mode)
+
+    def ext_compass(self):
+        self.compass_mode = 2
+        r.hset("helm", "compass_mode", self.compass_mode)
+
     @staticmethod
     def shutdown():
         os.system("sudo shutdown now -h")
@@ -74,7 +88,7 @@ class Action:
         r.hset("helm", "gain", int(self.gain))
 
     def _tsf(self, inc):
-        if 10 - inc <= self.tsf <= 2000 - inc:
+        if 10 - inc <= self.tsf <= 2500 - inc:
             self.tsf += inc
             print(f"tsf = {self.tsf}")
         r.hset("helm", "tsf", int(self.tsf))
@@ -104,10 +118,10 @@ class Action:
         self._gain(int(-self.gain / 10))
 
     def increase_tsf(self):
-        self._tsf(int(self.tsf / 10))
+        self._tsf(int(self.tsf / 5))
 
     def decrease_tsf(self):
-        self._tsf(int(-self.tsf / 10))
+        self._tsf(int(-self.tsf / 5))
 
     def steer_course(self):
         self.drive = 0
