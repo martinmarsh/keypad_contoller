@@ -19,6 +19,10 @@ class Action:
             8483: self.ext_compass, # numlock /
             8583: self.int_compass,  # numlock *
             8842: self.shutdown,   # backsp  enter
+            8742: self.increase_base,  # backsp +
+            8642: self.decrease_base,  # backsp -
+            9488: self.tack_right, # enter 6
+            9288: self.tack_left, # enter 4
             97: self.quick_right_helm,    # 9
             96: self.stop_helm,  # 8
             95: self.quick_left_helm,      # 7
@@ -36,12 +40,14 @@ class Action:
         }
         self.lock = True
         self.drive = 0
-        self.gain = 8000
-        self.tsf = 250
+        self.gain = 4000
+        self.tsf = 500
+        self.base_duty = 100000
         self.compass_mode = 1
         r.hset("helm", "tsf", self.tsf)
         r.hset("helm", "compass_mode", self.compass_mode)
         r.hset("helm", "gain", self.gain)
+        r.hset("helm", "base_duty", self.base_duty)
 
     def _action_key(self, val):
         method = self._key_map.get(val, None)
@@ -88,10 +94,16 @@ class Action:
         r.hset("helm", "gain", int(self.gain))
 
     def _tsf(self, inc):
-        if 10 - inc <= self.tsf <= 2500 - inc:
+        if 10 - inc <= self.tsf <= 5000 - inc:
             self.tsf += inc
             print(f"tsf = {self.tsf}")
         r.hset("helm", "tsf", int(self.tsf))
+
+    def _base(self, inc):
+        if 50000 - inc <= self.base_duty <= 500000 - inc:
+            self.base_duty += inc
+            print(f"base_duty = {self.base_duty}")
+        r.hset("helm", "base_duty", self.base_duty)
 
     def quick_right_helm(self):
         self._manual_mode(33)
@@ -123,6 +135,12 @@ class Action:
     def decrease_tsf(self):
         self._tsf(int(-self.tsf / 5))
 
+    def increase_base(self):
+        self._base(int(self.base_duty / 10))
+
+    def decrease_base(self):
+        self._base(int(-self.base_duty / 10))
+
     def steer_course(self):
         self.drive = 0
         hts = float(r.hget("current_data", "compass"))
@@ -134,6 +152,38 @@ class Action:
         self.drive = 0
         r.hset("helm", "drive", self.drive)
         r.hset("helm", "auto_mode", 3)
+
+    def tack_right(self):
+        self.tack(1)
+
+    def tack_left(self):
+        self.tack(-1)
+
+    def tack(self, dir):
+        hts = float(r.hget("current_data", "compass"))
+        new_hts = relative_direction(hts + dir*85)
+        print(f"new course = {new_hts}")
+        r.hset("helm", "auto_mode", 3)
+        r.hset("helm", "drive", dir*100)
+        print("driving helm over")
+        time.sleep(3)  # drive helm hard for 3 seconds to start tac(k
+        print("new course set")
+        r.hset("helm", "tsf", 100)
+        r.hset("helm", "hts", int(new_hts*10))
+        r.hset("helm", "auto_mode", 2)
+        time.sleep(3)  # continue to auto mode for 3 seconds low damping
+        # restore damping
+        r.hset("helm", "tsf", self.tsf)
+        print(f"Normal damping tsf = {self.tsf}")
+
+
+
+def relative_direction(diff):
+    if diff < -180:
+        diff += 360
+    elif diff > 180:
+        diff -= 360
+    return diff
 
 
 if __name__ == '__main__':
