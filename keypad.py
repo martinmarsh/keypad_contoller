@@ -161,7 +161,7 @@ class Action:
 
     def tack(self, dir):
         hts = float(r.hget("current_data", "compass"))
-        new_hts = relative_direction(hts + dir*85)
+        new_hts = compass_direction(hts + dir*85)
         print(f"new course = {new_hts}")
         r.hset("helm", "auto_mode", 3)
         r.hset("helm", "drive", dir*100)
@@ -178,10 +178,10 @@ class Action:
 
 
 
-def relative_direction(diff):
-    if diff < -180:
+def compass_direction(diff):
+    if diff < 0:
         diff += 360
-    elif diff > 180:
+    elif diff >= 360:
         diff -= 360
     return diff
 
