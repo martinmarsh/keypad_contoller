@@ -29,9 +29,9 @@ class Action:
             94: self.right_helm,    # 6
             93: self.stop_helm,  # 5
             92: self.left_helm,      # 4
-            91: self.slow_right_helm,  # 3
-            90: self.stop_helm,  # 2
-            89: self.slow_left_helm,  # 1
+            91: self.trim_auto_right,  # 3
+            90: self.return_auto_course,  # 2
+            89: self.trim_auto_left,  # 1
             98: self.steer_course,  # 0
             8784: self.increase_tsf,  # /+
             8684: self.decrease_tsf,  # /-
@@ -39,11 +39,15 @@ class Action:
             8685: self.decrease_gain,  # *-
         }
         self.lock = True
+        self.hts = 0
+        self.auto = False
         self.drive = 0
-        self.gain = 4000
-        self.tsf = 500
+        self.gain = 325
+        self.tsf = 1454
         self.base_duty = 100000
         self.compass_mode = 1
+        self.trim = 1
+        self.trim_dir = 0
         r.hset("helm", "tsf", self.tsf)
         r.hset("helm", "compass_mode", self.compass_mode)
         r.hset("helm", "gain", self.gain)
@@ -82,6 +86,7 @@ class Action:
         os.system("sudo shutdown now -h")
 
     def _manual_mode(self, inc):
+        self.auto = False
         r.hset("helm", "auto_mode", 3)
         if -100 - inc <= self.drive <= 100 - inc:
             self.drive += inc
@@ -143,12 +148,48 @@ class Action:
 
     def steer_course(self):
         self.drive = 0
-        hts = float(r.hget("current_data", "compass"))
-        print(hts)
-        r.hset("helm", "hts", int(hts*10))
+        self.hts = float(r.hget("current_data", "compass"))
+        self.auto = True
+        self.set_hts()
+        self.trim_dir = 0
+
+    def return_auto_course(self):
+        self.auto = True
+        self.set_hts()
+        self.trim_dir = 0
+
+    def trim_auto_right(self):
+        if self.trim_dir != 2:
+            self.trim = 1
+            self.trim_dir = 2
+        else:
+            self.trim += 1
+        if not self.auto:
+            steer_course()
+        else:
+            self.hts = compass_direction(self.hts + self.trim)
+            self.set_hts()
+
+    def trim_auto_left(self):
+        if self.trim_dir != 1:
+            self.trim = 1
+            self.trim_dir = 1
+        else:
+            self.trim += 1
+        if not self.auto:
+            steer_course()
+        else:
+            self.hts = compass_direction(self.hts - self.trim)
+            self.set_hts()
+
+    def set_hts(self):
+        print(self.hts)
+        r.hset("helm", "hts", int(self.hts*10))
         r.hset("helm", "auto_mode", 2)
 
+
     def stop_helm(self):
+        self.auto = False
         self.drive = 0
         r.hset("helm", "drive", self.drive)
         r.hset("helm", "auto_mode", 3)
@@ -160,22 +201,22 @@ class Action:
         self.tack(-1)
 
     def tack(self, dir):
-        hts = float(r.hget("current_data", "compass"))
-        new_hts = compass_direction(hts + dir*85)
-        print(f"new course = {new_hts}")
+        if not self.auto:
+            steer_course()
+        self.hts = compass_direction(self.hts + dir*85)
+        print(f"new course = {self.hts}")
         r.hset("helm", "auto_mode", 3)
         r.hset("helm", "drive", dir*100)
         print("driving helm over")
         time.sleep(3)  # drive helm hard for 3 seconds to start tac(k
         print("new course set")
         r.hset("helm", "tsf", 100)
-        r.hset("helm", "hts", int(new_hts*10))
+        r.hset("helm", "hts", int(self.hts*10))
         r.hset("helm", "auto_mode", 2)
         time.sleep(3)  # continue to auto mode for 3 seconds low damping
         # restore damping
         r.hset("helm", "tsf", self.tsf)
         print(f"Normal damping tsf = {self.tsf}")
-
 
 
 def compass_direction(diff):
